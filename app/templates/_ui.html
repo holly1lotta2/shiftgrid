@@ -1,0 +1,56 @@
+{# Общие элементы интерфейса. Подключение: {% import "_ui.html" as ui with context %} #}
+
+{% macro csrf_field() -%}
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro empty_state(icon, text, hint='') -%}
+  <div class="empty-state">
+    <i class="bi bi-{{ icon }}"></i>
+    <div>{{ text }}</div>
+    {% if hint %}<div class="small mt-1">{{ hint }}</div>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro request_badge(status) -%}
+  <span class="badge request-badge-{{ status }}">{{ REQUEST_STATUSES[status] }}</span>
+{%- endmacro %}
+
+{% macro shift_badge(status) -%}
+  <span class="badge status-badge-{{ status }}">{{ SHIFT_STATUSES[status] }}</span>
+{%- endmacro %}
+
+{% macro swap_action(request_id, action, label, btn_class, icon, next_url, confirm='') -%}
+  <form method="post" action="{{ url_for('swaps.act', request_id=request_id, action=action) }}"
+        class="d-inline"{% if confirm %} data-confirm="{{ confirm }}"{% endif %}>
+    {{ csrf_field() }}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="btn btn-sm {{ btn_class }}"><i class="bi bi-{{ icon }} me-1"></i>{{ label }}</button>
+  </form>
+{%- endmacro %}
+
+{% macro coverage_strip(strip, large=false) -%}
+  <div class="coverage {% if large %}coverage-lg{% endif %}" role="img"
+       aria-label="Людей на смене по часам: максимум {{ strip.peak }}{% if strip.gaps %}, пустых часов {{ strip.gaps }}{% endif %}">
+    {% for bar in strip.bars %}
+      <span class="{% if bar.gap %}gap{% elif not bar.count %}empty{% endif %}" style="--h: {{ bar.height }}%"
+            title="{{ bar.hour }}:00–{{ bar.hour + 1 }}:00 — {% if bar.gap %}никого нет{% else %}{{ bar.count }} чел.{% endif %}"></span>
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro shift_chip(s, show_name=false, link=false) -%}
+  {% set title = s.full_name ~ ' · ' ~ s.position ~ ' · ' ~ s.start_time ~ '–' ~ s.end_time ~ ' (' ~ (s.hours|hours) ~ ' ч) · ' ~ SHIFT_STATUSES[s.status] %}
+  {% set classes = 'shift-block emp-color-' ~ s.color ~ ' status-' ~ s.status ~ (' is-now' if s.is_now else '') %}
+  {% if link %}<a href="{{ url_for('shifts.edit', shift_id=s.id) }}" class="{{ classes }}" title="{{ title }}">
+  {% else %}<div class="{{ classes }}" title="{{ title }}">{% endif %}
+    <div class="shift-time">
+      {{ s.start_time }}–{{ s.end_time }}
+      {%- if s.overnight %} <i class="bi bi-moon-stars"></i>{% endif %}
+      {%- if s.status == 'completed' %} <i class="bi bi-check-circle-fill"></i>{% endif %}
+      {%- if s.status == 'cancelled' %} <i class="bi bi-x-circle-fill"></i>{% endif %}
+    </div>
+    {% if show_name %}<div class="shift-name">{{ s.full_name }}</div>{% endif %}
+    <div class="shift-pos">{{ s.position }}</div>
+  {% if link %}</a>{% else %}</div>{% endif %}
+{%- endmacro %}

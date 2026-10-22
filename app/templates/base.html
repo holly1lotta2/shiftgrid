@@ -1,0 +1,96 @@
+{% import "_ui.html" as ui with context %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ShiftGrid{% endblock %} · ShiftGrid</title>
+  <link rel="icon" href="{{ static_url('favicon.svg') }}" type="image/svg+xml">
+  <link rel="preload" href="{{ url_for('static', filename='vendor/fonts/ibm-plex-sans-cyrillic-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ static_url('vendor/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ static_url('vendor/bootstrap-icons.min.css') }}">
+  <link rel="stylesheet" href="{{ static_url('style.css') }}">
+</head>
+<body>
+{% macro flashes() -%}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category if category in ['success', 'danger', 'warning', 'info'] else 'secondary' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+{%- endmacro %}
+
+{% macro nav_link(blueprints, url, icon, label, count=0) -%}
+  <a class="side-link {% if request.blueprint in blueprints %}active{% endif %}" href="{{ url }}"
+     {% if request.blueprint in blueprints %}aria-current="page"{% endif %}>
+    <i class="bi bi-{{ icon }}"></i><span>{{ label }}</span>
+    {% if count %}<span class="side-count" title="Ждут вашего действия">{{ count }}</span>{% endif %}
+  </a>
+{%- endmacro %}
+
+{% if g.user %}
+  {% set is_manager = g.user.role == 'manager' %}
+  <header class="mobile-bar">
+    <a class="brand" href="{{ url_for('dashboard.index') }}"><img src="{{ static_url('favicon.svg') }}" alt="">ShiftGrid</a>
+    <button class="menu-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#appNav"
+            aria-controls="appNav" aria-expanded="false" aria-label="Меню"><i class="bi bi-list"></i></button>
+  </header>
+
+  <div class="app-frame">
+    <aside class="app-sidebar collapse" id="appNav">
+      <a class="brand" href="{{ url_for('dashboard.index') }}"><img src="{{ static_url('favicon.svg') }}" alt="">ShiftGrid</a>
+      <nav class="side-nav" aria-label="Разделы">
+        {{ nav_link(['dashboard'], url_for('dashboard.home'), 'house', 'Сегодня' if is_manager else 'Главная') }}
+        {{ nav_link(['schedule', 'shifts'], url_for('schedule.view'), 'calendar-week', 'График' if is_manager else 'Мой график') }}
+        {% if is_manager %}
+          {{ nav_link(['staff'], url_for('staff.employees'), 'people', 'Сотрудники') }}
+        {% else %}
+          {{ nav_link(['staff'], url_for('staff.colleagues'), 'people', 'Коллеги') }}
+        {% endif %}
+        {{ nav_link(['swaps'], url_for('swaps.index'), 'arrow-left-right', 'Замены', nav_badge) }}
+      </nav>
+      <div class="side-foot">
+        <div class="side-user">{{ g.user.full_name }}</div>
+        <div class="side-role">{{ ROLES[g.user.role] }}{% if g.user.position and not is_manager %} · {{ g.user.position }}{% endif %}</div>
+        <a class="side-link {% if request.blueprint == 'account' %}active{% endif %}" href="{{ url_for('account.profile') }}">
+          <i class="bi bi-gear"></i><span>Профиль и настройки</span>
+        </a>
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          {{ ui.csrf_field() }}
+          <button type="submit" class="side-link"><i class="bi bi-box-arrow-right"></i><span>Выйти</span></button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <div class="app-topbar">
+        <span>{{ today|ru_date }}</span>
+        {% if PUBLIC_MODE %}<span class="badge status-badge-planned">открыт по публичной ссылке</span>{% endif %}
+        {% if is_manager %}
+          <a href="{{ url_for('shifts.new') }}" class="btn btn-primary btn-sm ms-auto"><i class="bi bi-plus-lg me-1"></i>Смена</a>
+        {% endif %}
+      </div>
+      <main class="app-sheet">
+        {{ flashes() }}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+{% else %}
+  <main class="auth-page">
+    <div class="mx-auto" style="max-width: 900px;">{{ flashes() }}</div>
+    {{ self.content() }}
+  </main>
+{% endif %}
+
+<script src="{{ static_url('vendor/bootstrap.bundle.min.js') }}" defer></script>
+<script src="{{ static_url('app.js') }}" defer></script>
+</body>
+</html>

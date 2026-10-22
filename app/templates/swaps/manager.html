@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}Замены{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
+  <h1 class="h3 fw-bold mb-0">Замены</h1>
+</div>
+<p class="text-muted">Сотрудник просит коллегу, коллега соглашается, вы утверждаете — и смена переходит коллеге.</p>
+<nav class="tabs" aria-label="Фильтр замен">
+  {% for key, label in tabs %}
+    <a class="tab {% if tab == key %}active{% endif %}" href="{{ url_for('swaps.index', tab=key) }}"
+       {% if tab == key %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<div class="card">
+  {% if items %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr><th>Кто просит</th><th>Кто подменит</th><th>Смена</th><th>Причина</th><th>Статус</th><th class="text-end">Действия</th></tr>
+        </thead>
+        <tbody>
+          {% for r in items %}
+            <tr>
+              <td class="fw-semibold">{{ r.from_name }}</td>
+              <td>{{ r.to_name }}</td>
+              <td class="text-nowrap">
+                {{ r.shift_date|ru_date }}<br>
+                <span class="small text-muted">{{ r.start_time }}–{{ r.end_time }} · {{ r.position }}</span>
+              </td>
+              <td class="reason-cell">{{ r.reason }}</td>
+              <td>{{ ui.request_badge(r.status) }}<div class="small text-muted">{{ r.updated_at|ru_datetime }}</div></td>
+              <td class="text-end text-nowrap">
+                {% set back = url_for('swaps.index', tab=tab) %}
+                {% if r.status == 'pending_manager' %}
+                  {{ ui.swap_action(r.id, 'approve', 'Одобрить', 'btn-success', 'check-lg', back) }}
+                {% endif %}
+                {% if r.status in ['pending_manager', 'pending_colleague'] %}
+                  {{ ui.swap_action(r.id, 'reject', 'Отклонить', 'btn-outline-danger', 'x-lg', back, 'Отклонить замену от ' ~ r.from_name ~ '?') }}
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ ui.empty_state('inbox', 'Здесь пока пусто') }}
+  {% endif %}
+</div>
+{% endblock %}

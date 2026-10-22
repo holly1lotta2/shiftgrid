@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% set is_edit = shift is not none %}
+{% block title %}{% if is_edit %}Смена{% else %}Новая смена{% endif %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-10 col-lg-7">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="h3 fw-bold mb-0">{% if is_edit %}Изменить смену{% else %}Новая смена{% endif %}</h1>
+      <a href="{{ url_for('schedule.view', view='week', date=form.get('date') or today.isoformat()) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>К графику
+      </a>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-4">
+        {% if not employees %}
+          {{ ui.empty_state('people', 'Пока нет сотрудников', 'Сначала добавьте команду.') }}
+          <div class="text-center"><a href="{{ url_for('staff.employees') }}" class="btn btn-primary">Добавить сотрудников</a></div>
+        {% else %}
+        <form method="post" novalidate class="needs-validation" id="shiftForm"
+              action="{{ url_for('shifts.edit', shift_id=shift.id) if is_edit else url_for('shifts.new') }}">
+          {{ ui.csrf_field() }}
+
+          <div class="mb-3">
+            <label for="user_id" class="form-label">Сотрудник</label>
+            <select class="form-select" id="user_id" name="user_id" required>
+              <option value="">— выберите сотрудника —</option>
+              {% for emp in employees %}
+                <option value="{{ emp.id }}" data-position="{{ emp.position }}"
+                        {% if form.get('user_id')|string == emp.id|string %}selected{% endif %}>
+                  {{ emp.full_name }}{% if emp.position %} — {{ emp.position }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback">Выберите сотрудника.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="date" class="form-label">Дата</label>
+            <input type="date" class="form-control" id="date" name="date" value="{{ form.get('date', '') }}" required>
+            <div class="invalid-feedback">Укажите дату.</div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Время</label>
+            <div class="d-flex flex-wrap gap-2 mb-2" aria-label="Быстрый выбор времени">
+              {% for start, end in [('09:00', '17:00'), ('10:00', '22:00'), ('12:00', '20:00'), ('14:00', '23:00'), ('22:00', '06:00')] %}
+                <button type="button" class="btn btn-light btn-sm border time-preset" data-start="{{ start }}" data-end="{{ end }}">{{ start }}–{{ end }}</button>
+              {% endfor %}
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="time" class="form-control" id="start_time" name="start_time" value="{{ form.get('start_time', '') }}" required aria-label="Начало">
+                <div class="form-text">Начало</div>
+              </div>
+              <div class="col-6">
+                <input type="time" class="form-control" id="end_time" name="end_time" value="{{ form.get('end_time', '') }}" required aria-label="Окончание">
+                <div class="form-text">Окончание</div>
+                <div class="invalid-feedback" id="endFeedback">Укажите время окончания.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-check mb-1">
+            <input class="form-check-input" type="checkbox" value="1" id="overnight" name="overnight"
+                   {% if form.get('overnight') == '1' %}checked{% endif %}>
+            <label class="form-check-label" for="overnight"><i class="bi bi-moon-stars me-1"></i>Смена через полночь (например, 22:00–06:00)</label>
+          </div>
+          <div id="durationHint" class="form-text mb-3"></div>
+
+          <div class="mb-3">
+            <label for="position" class="form-label">Должность на смене</label>
+            <input type="text" class="form-control" id="position" name="position" value="{{ form.get('position', '') }}"
+                   required maxlength="50" list="positionList" placeholder="Например: Бариста">
+            <datalist id="positionList">
+              {% for p in POSITIONS %}<option value="{{ p }}">{% endfor %}
+            </datalist>
+            <div class="invalid-feedback">Укажите должность (до 50 символов).</div>
+          </div>
+
+          {% if is_edit %}
+            <div class="mb-3">
+              <label for="status" class="form-label">Статус</label>
+              <select class="form-select" id="status" name="status">
+                {% for key, label in SHIFT_STATUSES.items() %}
+                  <option value="{{ key }}" {% if form.get('status') == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Прошедшие смены становятся «Отработана» автоматически. Если сменить сотрудника или отменить смену, незавершённые замены по ней закроются.</div>
+            </div>
+          {% endif %}
+
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{% if is_edit %}Сохранить{% else %}Добавить смену{% endif %}</button>
+            {% if not is_edit %}
+              <button type="submit" name="add_another" value="1" class="btn btn-outline-primary">Добавить и создать ещё</button>
+            {% endif %}
+          </div>
+        </form>
+
+        {% if is_edit %}
+          <hr>
+          <form method="post" action="{{ url_for('shifts.delete', shift_id=shift.id) }}"
+                data-confirm="Удалить смену? Замены по ней тоже будут удалены.">
+            {{ ui.csrf_field() }}
+            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Удалить смену</button>
+          </form>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

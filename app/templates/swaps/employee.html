@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}Замены{% endblock %}
+{% block content %}
+<h1 class="h3 fw-bold mb-1">Замены</h1>
+<p class="text-muted small">Попросите коллегу выйти вместо вас. Когда он согласится, управляющий утвердит замену и смена перейдёт к нему.</p>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-5">
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-send me-1 text-primary"></i>Попросить замену</div>
+      <div class="card-body">
+        {% if not my_shifts %}
+          {{ ui.empty_state('calendar-x', 'Нет смен, на которые можно попросить замену', 'Подходят только будущие смены без активной просьбы.') }}
+        {% elif not colleagues %}
+          {{ ui.empty_state('people', 'Нет коллег, которые могли бы подменить') }}
+        {% else %}
+          <form method="post" action="{{ url_for('swaps.create') }}" novalidate class="needs-validation">
+            {{ ui.csrf_field() }}
+            <div class="mb-3">
+              <label for="shift_id" class="form-label">Моя смена</label>
+              <select class="form-select" id="shift_id" name="shift_id" required>
+                <option value="">— выберите смену —</option>
+                {% for s in my_shifts %}
+                  <option value="{{ s.id }}" {% if s.id == selected_shift %}selected{% endif %}>{{ s.date|ru_date }}, {{ s.start_time }}–{{ s.end_time }} · {{ s.position }}</option>
+                {% endfor %}
+              </select>
+              <div class="invalid-feedback">Выберите смену.</div>
+            </div>
+            <div class="mb-3">
+              <label for="to_user_id" class="form-label">Кого попросить</label>
+              <select class="form-select" id="to_user_id" name="to_user_id" required>
+                <option value="">— выберите коллегу —</option>
+                {% for c in colleagues %}
+                  <option value="{{ c.id }}" {% if c.id == selected_colleague %}selected{% endif %}>{{ c.full_name }}{% if c.position %} — {{ c.position }}{% endif %}</option>
+                {% endfor %}
+              </select>
+              <div class="invalid-feedback">Выберите коллегу.</div>
+            </div>
+            <div class="mb-3">
+              <label for="reason" class="form-label">Причина</label>
+              <textarea class="form-control" id="reason" name="reason" rows="3" required minlength="3" maxlength="500"
+                        placeholder="Например: экзамен, болезнь, семейные обстоятельства"></textarea>
+              <div class="invalid-feedback">От 3 до 500 символов.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-send me-1"></i>Отправить</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><i class="bi bi-inbox me-1 text-primary"></i>Просят меня</div>
+      {% if incoming %}
+        <ul class="list-group list-group-flush">
+          {% for r in incoming %}
+            <li class="list-group-item">
+              <div class="d-flex justify-content-between flex-wrap gap-2">
+                <div>
+                  <div class="fw-semibold">{{ r.from_name }}</div>
+                  <div class="small text-muted">{{ r.shift_date|ru_date }}, {{ r.start_time }}–{{ r.end_time }} · {{ r.position }}</div>
+                  <div class="small fst-italic">«{{ r.reason }}»</div>
+                </div>
+                <div class="text-end">{{ ui.request_badge(r.status) }}</div>
+              </div>
+              {% if r.status == 'pending_colleague' %}
+                <div class="mt-2">
+                  {{ ui.swap_action(r.id, 'accept', 'Согласиться', 'btn-success', 'check-lg', url_for('swaps.index')) }}
+                  {{ ui.swap_action(r.id, 'decline', 'Отказаться', 'btn-outline-secondary', 'x-lg', url_for('swaps.index')) }}
+                </div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        {{ ui.empty_state('inbox', 'Вас пока никто не просил подменить') }}
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1 text-primary"></i>Мои просьбы</div>
+      {% if outgoing %}
+        <ul class="list-group list-group-flush">
+          {% for r in outgoing %}
+            <li class="list-group-item">
+              <div class="d-flex justify-content-between flex-wrap gap-2">
+                <div>
+                  <div class="fw-semibold">→ {{ r.to_name }}</div>
+                  <div class="small text-muted">{{ r.shift_date|ru_date }}, {{ r.start_time }}–{{ r.end_time }} · {{ r.position }}</div>
+                  <div class="small fst-italic">«{{ r.reason }}»</div>
+                </div>
+                <div class="text-end">
+                  {{ ui.request_badge(r.status) }}
+                  {% if r.status in ['pending_colleague', 'pending_manager'] %}
+                    <div class="mt-2">{{ ui.swap_action(r.id, 'cancel', 'Отменить', 'btn-outline-danger', 'x', url_for('swaps.index'), 'Отменить просьбу о замене?') }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        {{ ui.empty_state('send', 'Вы ещё не просили замену') }}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

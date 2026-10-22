@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}Главная{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Мои смены</h1>
+    <div class="page-sub">{{ g.user.full_name }}{% if g.user.position %} · {{ g.user.position }}{% endif %}</div>
+  </div>
+  <a href="{{ url_for('schedule.view') }}" class="btn btn-outline-primary"><i class="bi bi-calendar-week me-1"></i>Мой график</a>
+</div>
+
+<div class="next-shift">
+  {% if next_shift %}
+    {% set s = next_shift %}
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+      <div>
+        <div class="next-shift-label">{% if s.is_now %}Вы сейчас на смене{% else %}Следующая смена{% endif %}</div>
+        <div class="next-shift-time num">
+          {% if s.is_now %}до {{ s.end_time }}{% else %}{{ s.date|relative_day|capitalize }}, {{ s.start_time }}–{{ s.end_time }}{% endif %}
+        </div>
+        <div class="text-muted">{{ s.position }} · {{ s.hours|hours }} ч{% if s.overnight %} · через полночь{% endif %}</div>
+      </div>
+      {% if s.is_future %}
+        {% if s.id in swap_shift_ids %}
+          <span class="badge request-badge-pending_manager">Замена на рассмотрении</span>
+        {% else %}
+          <a href="{{ url_for('swaps.index', shift=s.id) }}" class="btn btn-primary"><i class="bi bi-arrow-left-right me-1"></i>Попросить замену</a>
+        {% endif %}
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="next-shift-time">Запланированных смен пока нет</div>
+    <div class="text-muted">Когда управляющий поставит вас в график, смена появится здесь.</div>
+  {% endif %}
+</div>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="kpi-value">{{ worked_hours|hours }} ч</div>
+    <div class="kpi-label">отработано за {{ month_name|lower }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-value is-answer">{{ planned_hours|hours }} ч</div>
+    <div class="kpi-label">по графику из {{ NORM_HOURS }} ч нормы</div>
+    <div class="progress mt-2" role="progressbar" aria-label="Выполнение нормы" aria-valuenow="{{ percent }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar {% if overtime > 0 %}bg-danger{% endif %}" style="width: {{ percent }}%"></div>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-value {% if overtime > 0 %}text-overtime{% endif %}">{% if overtime > 0 %}+{% endif %}{{ overtime|hours }} ч</div>
+    <div class="kpi-label">переработка сверх нормы</div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-7">
+    <div class="card h-100">
+      <div class="card-header">Дальше по графику</div>
+      <div class="card-body py-1">
+        {% if upcoming %}
+          <ul class="list-group list-group-flush">
+            {% for s in upcoming %}
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                  <div class="fw-semibold">{{ s.date|relative_day|capitalize }}</div>
+                  <div class="small text-muted num">{{ s.start_time }}–{{ s.end_time }} · {{ s.hours|hours }} ч · {{ s.position }}</div>
+                </div>
+                {% if s.id in swap_shift_ids %}
+                  <span class="badge request-badge-pending_manager">Замена на рассмотрении</span>
+                {% else %}
+                  <a href="{{ url_for('swaps.index', shift=s.id) }}" class="btn btn-outline-primary btn-sm">Замена</a>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {{ ui.empty_state('calendar-x', 'Других смен пока нет') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header">Вас просят подменить</div>
+      <div class="card-body py-1">
+        {% if incoming %}
+          <ul class="list-group list-group-flush">
+            {% for r in incoming %}
+              <li class="list-group-item px-0">
+                <div class="fw-semibold">{{ r.from_name }}</div>
+                <div class="small text-muted">{{ r.shift_date|ru_date }}, {{ r.start_time }}–{{ r.end_time }} · {{ r.position }}</div>
+                <div class="small mb-2">«{{ r.reason }}»</div>
+                {{ ui.swap_action(r.id, 'accept', 'Согласиться', 'btn-primary', 'check-lg', url_for('dashboard.home')) }}
+                {{ ui.swap_action(r.id, 'decline', 'Отказаться', 'btn-outline-secondary', 'x-lg', url_for('dashboard.home')) }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {{ ui.empty_state('inbox', 'Новых просьб нет') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

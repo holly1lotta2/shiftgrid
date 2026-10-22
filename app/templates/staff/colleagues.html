@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}Коллеги{% endblock %}
+{% block content %}
+<h1 class="h3 fw-bold mb-1">Коллеги</h1>
+<p class="text-muted">Можно позвонить напрямую или отправить просьбу о замене через приложение.</p>
+{% if colleagues %}
+  <div class="row g-3">
+    {% for c in colleagues %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <span class="avatar emp-color-{{ c.id % 8 }}">{{ c.full_name[:1] }}</span>
+              <div>
+                <div class="fw-semibold">{{ c.full_name }}</div>
+                <div class="small text-muted">{{ c.position or 'Сотрудник' }}</div>
+              </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              {% if c.phone %}
+                <a href="tel:{{ c.phone|replace(' ', '') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-telephone me-1"></i>{{ c.phone }}</a>
+              {% endif %}
+              <a href="{{ url_for('swaps.index', to=c.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left-right me-1"></i>Попросить замену</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card">{{ ui.empty_state('people', 'Других сотрудников пока нет') }}</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}График · месяц{% endblock %}
+{% block content %}
+{% include "schedule/_toolbar.html" %}
+
+{% if month_hours is not none %}
+  <div class="card mb-3">
+    <div class="card-body py-2 small">
+      Часов за месяц: <strong>{{ month_hours|hours }}</strong> из {{ NORM_HOURS }}
+      {% if month_overtime > 0 %} · <span class="text-overtime">переработка +{{ month_overtime|hours }} ч</span>{% endif %}
+    </div>
+  </div>
+{% endif %}
+
+{% if not by_date %}
+  <div class="alert alert-light border text-center">
+    <i class="bi bi-calendar-x me-1"></i>В этом месяце смен пока нет.
+  </div>
+{% endif %}
+
+<div class="calendar card">
+  <div class="calendar-head">
+    {% for wd in weekdays %}
+      <div class="calendar-head-cell {% if loop.index > 5 %}weekend{% endif %}">{{ wd }}</div>
+    {% endfor %}
+  </div>
+  <div class="calendar-grid">
+    {% for week in weeks %}
+      {% for day in week %}
+        {% set day_shifts = by_date.get(day.isoformat(), []) %}
+        <div class="cal-day {% if day.month != month %}other-month{% endif %} {% if day == today %}today{% endif %} {% if not day_shifts %}no-shifts{% endif %} {% if day.weekday() > 4 %}weekend{% endif %}">
+          <div class="cal-day-head">
+            <span class="cal-date"><span class="cal-weekday">{{ weekdays[day.weekday()] }},</span> {{ day.day }}</span>
+            {% if is_manager %}
+              <a class="cal-add" href="{{ url_for('shifts.new', date=day.isoformat(), user_id=selected or '') }}" title="Добавить смену"><i class="bi bi-plus"></i></a>
+            {% endif %}
+          </div>
+          {% for s in day_shifts %}
+            {{ ui.shift_chip(s, show_name=is_manager, link=is_manager) }}
+          {% endfor %}
+        </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+<div class="small text-muted mt-2">
+  <i class="bi bi-moon-stars"></i> — через полночь · <i class="bi bi-check-circle-fill"></i> — отработана ·
+  <i class="bi bi-x-circle-fill"></i> — отменена{% if is_manager %} · нажмите на смену, чтобы изменить её{% endif %}
+</div>
+{% endblock %}

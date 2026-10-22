@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}Сегодня{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Сегодня, {{ today.day }} {{ month_genitive }}</h1>
+    <div class="page-sub">Неделя {{ week_start.strftime('%d.%m') }}–{{ week_end.strftime('%d.%m') }} · сейчас на смене {{ now_count }}</div>
+  </div>
+  <a href="{{ url_for('schedule.view') }}" class="btn btn-outline-primary"><i class="bi bi-calendar-week me-1"></i>График недели</a>
+</div>
+
+<div class="kpis">
+  <a class="kpi" href="{{ url_for('swaps.index') }}">
+    <div class="kpi-value is-answer {% if stats.pending %}text-overtime{% endif %}">{{ stats.pending }}</div>
+    <div class="kpi-label">замен ждут вашего решения</div>
+  </a>
+  <a class="kpi" href="{{ url_for('schedule.view') }}">
+    <div class="kpi-value">{{ stats.week_shifts }}</div>
+    <div class="kpi-label">смен на этой неделе</div>
+  </a>
+  <a class="kpi" href="{{ url_for('schedule.view') }}">
+    <div class="kpi-value">{{ stats.week_hours|hours }} ч</div>
+    <div class="kpi-label">часов на этой неделе</div>
+  </a>
+  <a class="kpi" href="{{ url_for('staff.employees') }}">
+    <div class="kpi-value">{{ stats.employees }}</div>
+    <div class="kpi-label">сотрудников в команде</div>
+  </a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Люди на месте по часам</span>
+    <span class="small text-muted">
+      {% if today_coverage.gaps %}<span class="text-overtime">пустых часов: {{ today_coverage.gaps }}</span>
+      {% else %}максимум {{ today_coverage.peak }} чел.{% endif %}
+    </span>
+  </div>
+  <div class="card-body pt-4">
+    <div class="coverage-wrap" style="--now: {{ now_percent }}%">
+      {{ ui.coverage_strip(today_coverage, large=true) }}
+      <div class="coverage-now" aria-hidden="true"></div>
+      <div class="coverage-axis"><span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between">
+        <span>Кто работает сегодня</span>
+        <a class="small" href="{{ url_for('shifts.new', date=today.isoformat()) }}">+ добавить</a>
+      </div>
+      <div class="card-body py-1">
+        {% if today_shifts %}
+          <ul class="list-group list-group-flush">
+            {% for s in today_shifts %}
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+                <a href="{{ url_for('shifts.edit', shift_id=s.id) }}" class="d-flex align-items-center gap-2 text-reset text-decoration-none">
+                  <span class="avatar avatar-sm emp-color-{{ s.color }}">{{ s.full_name[:1] }}</span>
+                  <span>
+                    <span class="d-block fw-semibold">{{ s.full_name }}</span>
+                    <span class="d-block small text-muted">{{ s.position }}</span>
+                  </span>
+                </a>
+                <div class="text-end">
+                  <div class="num">{{ s.start_time }}–{{ s.end_time }}{% if s.overnight %} <i class="bi bi-moon-stars" title="Через полночь"></i>{% endif %}</div>
+                  {% if s.is_now %}<span class="badge status-badge-completed">на смене</span>{% else %}{{ ui.shift_badge(s.status) }}{% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {{ ui.empty_state('calendar-x', 'На сегодня смен нет') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between">
+        <span>Замены на утверждение</span>
+        <a href="{{ url_for('swaps.index') }}" class="small">Все замены</a>
+      </div>
+      <div class="card-body py-1">
+        {% if waiting %}
+          <ul class="list-group list-group-flush">
+            {% for r in waiting %}
+              <li class="list-group-item px-0">
+                <div class="fw-semibold">{{ r.from_name }} <i class="bi bi-arrow-right"></i> {{ r.to_name }}</div>
+                <div class="small text-muted">{{ r.shift_date|ru_date }}, {{ r.start_time }}–{{ r.end_time }} · {{ r.position }} · коллега согласен</div>
+                <div class="small mb-2">«{{ r.reason }}»</div>
+                {{ ui.swap_action(r.id, 'approve', 'Одобрить', 'btn-primary', 'check-lg', url_for('dashboard.home')) }}
+                {{ ui.swap_action(r.id, 'reject', 'Отклонить', 'btn-outline-secondary', 'x-lg', url_for('dashboard.home'), 'Отклонить замену?') }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {{ ui.empty_state('inbox', 'Нет замен, которые ждут решения') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between">
+        <span>Часы за {{ month_name|lower }}</span>
+        <a href="{{ url_for('staff.employees') }}" class="small">Отчёт по сотрудникам</a>
+      </div>
+      <div class="card-body">
+        <p class="mb-2">Команда по графику: <strong>{{ team_hours|hours }} ч</strong>. Норма — {{ NORM_HOURS }} ч на человека в месяц.</p>
+        {% if overtime %}
+          {% for row in overtime %}
+            <div class="d-flex justify-content-between border-top py-2">
+              <span>{{ row.full_name }}</span>
+              <span class="num">{{ row.hours|hours }} ч · <span class="text-overtime">+{{ row.overtime|hours }} ч сверх нормы</span></span>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted">Переработок в этом месяце нет.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

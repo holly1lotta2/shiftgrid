@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui with context %}
+{% block title %}{{ employee.full_name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="h3 fw-bold mb-0">{{ employee.full_name }}</h1>
+      <a href="{{ url_for('staff.employees') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>К списку</a>
+    </div>
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" novalidate class="needs-validation">
+          {{ ui.csrf_field() }}
+          <div class="mb-3">
+            <label class="form-label">Логин</label>
+            <input type="text" class="form-control" value="{{ employee.username }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label for="full_name" class="form-label">Имя и фамилия</label>
+            <input type="text" class="form-control" id="full_name" name="full_name" value="{{ form.get('full_name', '') }}" required minlength="2" maxlength="100">
+            <div class="invalid-feedback">От 2 до 100 символов.</div>
+          </div>
+          <div class="mb-3">
+            <label for="position" class="form-label">Должность</label>
+            <input type="text" class="form-control" id="position" name="position" value="{{ form.get('position', '') }}" maxlength="50" list="positionList">
+            <datalist id="positionList">{% for p in POSITIONS %}<option value="{{ p }}">{% endfor %}</datalist>
+            <div class="form-text">Подставляется по умолчанию при создании смены.</div>
+          </div>
+          <div class="mb-3">
+            <label for="phone" class="form-label">Телефон</label>
+            <input type="tel" class="form-control" id="phone" name="phone" value="{{ form.get('phone', '') }}" maxlength="30" pattern="[0-9+()\- ]{5,30}">
+            <div class="invalid-feedback">Цифры, пробелы и символы + - ( ).</div>
+          </div>
+          {% if not PUBLIC_MODE %}
+          <div class="mb-4">
+            <label for="new_password" class="form-label">Новый пароль <span class="text-muted small">(если нужно сбросить)</span></label>
+            <input type="text" class="form-control" id="new_password" name="new_password" minlength="{{ MIN_PASSWORD_LENGTH }}" maxlength="128" autocomplete="off">
+            <div class="invalid-feedback">Минимум {{ MIN_PASSWORD_LENGTH }} символов.</div>
+          </div>
+          {% endif %}
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Сохранить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
